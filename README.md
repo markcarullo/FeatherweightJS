@@ -1,3 +1,4 @@
+![Logo](logo.jpg)
 # FeatherweightJS
 A Minimalistic Reactive UI Library
 
