@@ -87,14 +87,14 @@ function peek(peekFn) {
    return Listener.now ? apply(Listener, null).call(peekFn) : peekFn();
 }
 
-function element(tag, config = {}) {
-   const blueprint = (...children) => element(tag, { ...config, children }).finalize();
-   blueprint.with = (extension) => element(tag, { ...config, ...extension });
+function element(tag, props = {}) {
+   const blueprint = (...args) => element(tag, { ...props, ...toProps(args) }).finalize();
+   blueprint.with = (extensions) => element(tag, { ...props, ...extensions });
    blueprint.finalize = () => ({
       build: () => {
          const el = document.createElement(tag);
-         for (const key in config) {
-            if (key === 'children') el.append(buildFragment(config[key]));
+         for (const key in props) {
+            if (key === 'children') el.append(buildFragment(props.children));
             else {
                let setter = null;
                const path = key.split('.');
@@ -106,7 +106,7 @@ function element(tag, config = {}) {
                } else
                   setter = (value) =>
                      value ? el.setAttribute(key, value) : el.removeAttribute(key);
-               const value = config[key];
+               const value = props[key];
                if (typeof value === 'function' && !/^on/.test(key))
                   (el._bindings || (el._bindings = [])).push(
                      effect(() => setter(value()))
@@ -124,7 +124,7 @@ function component(componentFn) {
    return (...args) => {
       let node = null;
       return {
-         render: () => (node = renderWithOwnDomain(() => componentFn(...args))),
+         render: () => (node = renderWithOwnDomain(() => componentFn(toProps(args)))),
          remove: () => node && remove(node)
       };
    };
@@ -213,6 +213,18 @@ function signalProxy() {
          };
       }
    };
+}
+
+function toProps(args) {
+   if (!args.length) return {};
+   const [first, ...rest] = args;
+   const firstIsProps = first && typeof first === 'object' && !(first instanceof Node);
+   const props = firstIsProps ? first : {};
+   const children = (firstIsProps ? rest : args).reduce((children, child) => {
+      child && children.push(child);
+      return children;
+   }, []);
+   return { ...props, children };
 }
 
 function renderWithOwnDomain(renderFn) {
